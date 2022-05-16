@@ -22,6 +22,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	yaml "gopkg.in/yaml.v2"
 )
 
 const (
@@ -203,7 +205,20 @@ func (r *report) processResults() {
 	}
 }
 
-var pctls = []float64{10, 25, 50, 75, 90, 95, 99, 99.9}
+func rangeArray(start float64, end float64, inter float64) []float64 {
+	len := int((end - start) / inter)
+	array := make([]float64, len)
+
+	i := 0
+	for cur := start; cur < end; cur += inter {
+		array[i] = cur
+		i++
+	}
+
+	return array
+}
+
+var pctls = rangeArray(1, 100, 1)
 
 // Percentiles returns percentile distribution of float64 slice.
 func Percentiles(nums []float64) (pcs []float64, data []float64) {
@@ -227,10 +242,18 @@ func percentiles(nums []float64) (data []float64) {
 func (r *report) sprintLatencies() string {
 	data := percentiles(r.stats.Lats)
 	s := fmt.Sprintf("\nLatency distribution:\n")
+	m := make(map[float64]float64)
 	for i := 0; i < len(pctls); i++ {
 		if data[i] > 0 {
-			s += fmt.Sprintf("  %v%% in %s.\n", pctls[i], r.sec2str(data[i]))
+			m[pctls[i]] = data[i]
 		}
+	}
+
+	yamlData, err := yaml.Marshal(m)
+	if err != nil {
+		s += fmt.Sprintf("Error while marshaling. %v", err)
+	} else {
+		s += string(yamlData)
 	}
 	return s
 }
